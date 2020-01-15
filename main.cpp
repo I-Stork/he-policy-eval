@@ -52,10 +52,7 @@ int main()
                 StringSet parts = split_line(line);
                 String index = parts[0];
                 Query query = perform_query_parsing(pub, parts[1]);
-                //std::cout << "query parsed...";
                 Node* policy = perform_policy_parsing(pub, parts[2]);
-
-//std::cout << "Evaluation started on policy " << number << "..." << std::endl;
 
                 policy->evaluate(t, f, u, pub, prv, n_minus_1, query);
 

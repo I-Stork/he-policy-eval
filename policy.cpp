@@ -1095,16 +1095,6 @@ void Leaf::evaluate(mpz_t t, mpz_t f, mpz_t u, djn_pubkey_t* pub, djn_prvkey_t* 
 
     // t
     mpz_set(t, this->value);
-
-    /*mpz_t d1, d2, d3;
-    mpz_inits(d1, d2, d3, NULL);
-
-    djn_decrypt(d1, pub, prv, t);
-    djn_decrypt(d2, pub, prv, f);
-    djn_decrypt(d1, pub, prv, u);
-
-    gmp_printf("Leaf: %Zd, %Zd, %Zd\n", d1, d2, d3);
-    */
 }
 
 void Target::target_evaluate(mpz_t t, mpz_t f, mpz_t u, djn_pubkey_t* pub, djn_prvkey_t* prv, mpz_t n_minus_1, Query q)
@@ -1148,27 +1138,9 @@ void Target::target_evaluate(mpz_t t, mpz_t f, mpz_t u, djn_pubkey_t* pub, djn_p
         djn_hm_add(pub, value_smaller, value_smaller_equal, value_equal);
         this->SecureEqualityProtocol(cond_match, four_enc, this->condition, pub, prv);
         this->SecureMultiplicationProtocol(c4, value_smaller, cond_match, pub, prv);
-
-        mpz_t a, b, at, bt, test, test2;
-        mpz_inits(a, b, at, bt, test, test2, NULL);
-
-        mpz_set_ui(a, 6);
-        mpz_set_ui(b, 10);
-
-        djn_encrypt(at, pub, a);
-        djn_encrypt(bt, pub, b);
-
-        this->SecureEqualityProtocol(test, at, bt, pub, prv);
-        djn_decrypt(test2, pub, prv, test);
-        //gmp_printf("Test: %Zd\n", test2);
-
-
-
-
         
         djn_decrypt(t1, pub, prv, value_greater);
         djn_decrypt(t3, pub, prv, c3);
-        //gmp_printf("c3: %Zd, %Zd, %Zd\n", t1, t2, t3);
 
         mpz_t d1, d2, d3, d4;
         mpz_inits(d1, d2, d3, d4, NULL);
@@ -1178,8 +1150,6 @@ void Target::target_evaluate(mpz_t t, mpz_t f, mpz_t u, djn_pubkey_t* pub, djn_p
         djn_decrypt(d2, pub, prv, c2);
         djn_decrypt(d3, pub, prv, c3);
         djn_decrypt(d4, pub, prv, c4);
-
-        //gmp_printf("Target eval: %Zd, %Zd, %Zd, %Zd\n", d1, d2, d3, d4);
 
         clock_gettime(CLOCK_MONOTONIC, &startT);
         djn_hm_add(pub, value_match, value_match, c2);
@@ -1197,7 +1167,6 @@ void Target::target_evaluate(mpz_t t, mpz_t f, mpz_t u, djn_pubkey_t* pub, djn_p
         djn_decrypt(a2, pub, prv, q[i].attribute);
         djn_decrypt(a3, pub, prv, attribute_match);
 
-        //gmp_printf("match: %Zd, %Zd, %Zd\n", a1, a2, a3);
         djn_hm_add(pub, M, M, match);
     }
 
@@ -1217,9 +1186,6 @@ void Target::target_evaluate(mpz_t t, mpz_t f, mpz_t u, djn_pubkey_t* pub, djn_p
     this->SCP(f, included, NM, pub, prv);
     this->SNP(u, included, pub, n_minus_1);
 
-    //mpz_set(t, res_t);
-   // mpz_set(f, res_f);
-    //mpz_set(u, res_u);
 }
 
 void Target::evaluate(mpz_t t, mpz_t f, mpz_t u, djn_pubkey_t* pub, djn_prvkey_t* prv, mpz_t n_minus_1, Query q)
@@ -1238,8 +1204,6 @@ void Target::evaluate(mpz_t t, mpz_t f, mpz_t u, djn_pubkey_t* pub, djn_prvkey_t
     djn_decrypt(d1, pub, prv, eval_p_t);
     djn_decrypt(d2, pub, prv, eval_p_f);
     djn_decrypt(d3, pub, prv, eval_p_u);
-
-    //gmp_printf("%Zd, %Zd, %Zd\n", d1, d2, d3);
     
     this->SDP(eval_t_f_or_u, eval_t_f, eval_t_u, pub, prv, n_minus_1);
     this->SCP(eval_t_t_and_p_u, eval_t_t, eval_p_u, pub, prv);
