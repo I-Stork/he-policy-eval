@@ -1,0 +1,202 @@
+#include "Paillier.h"
+
+using namespace std;
+
+Paillier::Paillier(int bit_length)
+{
+	this->bit_length = bit_length;
+	this->s = 1;
+
+	mpz_inits(n, n_s, n_sp, g, p, q, d, mu, NULL);
+
+	enc_only = false;
+
+	keygen();
+}
+
+Paillier::Paillier(int bit_length, mpz_t n, mpz_t g)
+{
+	mpz_inits(this->n, this->g, n_s, n_sp, NULL);
+
+	mpz_set(this->n, n);
+	mpz_set(this->g, g);
+
+	this->s = 1;
+	this->bit_length = bit_length;
+
+	enc_only = true;
+
+	keygen();
+}
+
+void Paillier::keygen()
+{
+	init_random();
+
+	if (!enc_only) 
+	{
+		// Generate p q, random primes of length bitlength/2
+		get_random_prime(p);
+		get_random_prime(q);
+
+		mpz_mul(n, p, q);
+		mpz_add_ui(g, n, 1);
+	}
+
+	mpz_pow_ui(n_s, n, s);
+	mpz_pow_ui(n_sp, n, (s + 1));
+
+	if (!enc_only) 
+	{
+		mpz_t p1, q1;
+		mpz_inits(p1, q1, NULL);
+
+		mpz_sub_ui(p1, p, 1);
+		mpz_sub_ui(q1, q, 1);
+
+		mpz_mul(d, p1, q1);
+
+		mpz_invert(mu, d, n_s);
+
+		mpz_clears(p1, q1, NULL);
+	}
+
+}
+
+void Paillier::init_random()
+{
+	int random_dev = open("/dev/urandom", O_RDONLY);
+	long random_seed = 0;
+	size_t random_len = 0;
+
+	while (random_len < sizeof random_seed) 
+	{
+		ssize_t result = read(random_dev, ((char*) &random_seed) + random_len, (sizeof random_seed) - random_len);
+		if (result < 0)
+		{
+			cout << "unable to read from urandom" << endl;
+		}
+		random_len += result;
+	}
+
+	close(random_dev);
+
+	gmp_randinit_mt(state);
+	gmp_randseed_ui(state, random_seed);
+
+}
+
+void Paillier::get_random(mpz_t result, int bit_length)
+{
+	mpz_urandomb(result, state, bit_length);
+}
+
+void Paillier::get_random_n(mpz_t result)
+{
+    mpz_urandomm (result, state, n);
+}
+
+void Paillier::get_random_prime(mpz_t result)
+{
+	mpz_urandomb(result, state, (bit_length / 2));
+	mpz_nextprime(result, result);
+}
+
+void Paillier::encrypt_exp_1(mpz_t result, const mpz_t m)
+{
+	mpz_powm(result, g, m, n_sp);
+}
+
+void Paillier::encrypt_exp_2(mpz_t result)
+{
+	mpz_t r;
+	mpz_init(r);
+	mpz_urandomb(r, state, bit_length);
+
+	mpz_powm(result, r, n_s, n_sp);
+
+	mpz_clear(r);
+}
+
+void Paillier::encrypt_mult(mpz_t result, const mpz_t m, const mpz_t g)
+{
+	mpz_mul(result, m, g);
+	mpz_mod(result, result, n_sp);
+}
+
+void Paillier::encrypt(mpz_t result, const mpz_t m)
+{
+	mpz_t temp1, temp2, r;
+	mpz_inits(temp1, temp2, result, r, NULL);
+	mpz_urandomb(r, state, bit_length);
+
+	mpz_powm(temp1, g, m, n_sp);
+	mpz_powm(temp2, r, n_s, n_sp);
+
+	mpz_mul(result, temp1, temp2);
+	mpz_mod(result, result, n_sp);
+
+	mpz_clears(temp1, temp2, r, NULL);
+
+}
+
+void Paillier::find_i(mpz_t result, const mpz_t c)
+{
+	mpz_t t, t1, t2, nj, nj1, f, i;
+	mpz_inits(t, t1, t2, nj, nj1, f, i, NULL);
+	mpz_set_ui(i, 0);
+
+	for (int j = 1; j <= s; j++) 
+	{
+		mpz_pow_ui(nj, n, j);
+		mpz_pow_ui(nj1, n, j + 1);
+
+		mpz_mod(t, c, nj1);
+		mpz_sub_ui(t, t, 1);
+		mpz_tdiv_q(t1, t, n);
+
+		mpz_set(t2, i);
+
+		for (int k = 2; k <= j; k++) 
+		{
+			mpz_sub_ui(i, i, 1);
+
+			mpz_mul(t2, t2, i);
+			mpz_mod(t2, t2, nj);
+
+			mpz_fac_ui(f, k);
+			mpz_invert(f, f, nj);
+
+			mpz_t nkm1; // n^(k-1)
+			mpz_init(nkm1);
+			mpz_pow_ui(nkm1, n, k - 1);
+
+			mpz_mul(f, f, nkm1);
+			mpz_mod(f, f, nj);
+
+			mpz_mul(f, f, t2);
+			mpz_mod(f, f, nj);
+
+			mpz_sub(t1, t1, f);
+			mpz_mod(t1, t1, nj);
+		}
+		mpz_set(i, t1);
+	}
+	mpz_set(result, i);
+
+}
+
+void Paillier::decrypt(mpz_t result, const mpz_t c)
+{
+	mpz_t temp1, temp2, temp3;
+	mpz_inits(temp1, temp2, temp3, NULL);
+
+	mpz_powm(temp1, c, d, n_sp);
+	find_i(temp2, temp1);
+
+	mpz_mul(temp3, temp2, mu);
+	mpz_mod(result, temp3, n_s);
+
+	mpz_clears(temp1, temp2, temp3, NULL);
+}
+
